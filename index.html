@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>نقشه آب و هوای ایران</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Weather Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/weather-icons/2.0.12/css/weather-icons.min.css" />
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+    <div class="container">
+        <h1>نقشه آب و هوای استان‌های ایران</h1>
+        
+        <div id="map-container">
+            <div id="map"></div>
+            
+            <div class="loading-overlay">
+                <div class="loader"></div>
+            </div>
+            
+            <div class="controls">
+                <button class="refresh-btn">
+                    <i class="wi wi-refresh"></i>
+                    بروزرسانی
+                </button>
+                <button class="toggle-legend-btn">
+                    <i class="wi wi-day-sunny"></i>
+                    راهنمای نقشه
+                </button>
+                <button class="fullscreen-btn">
+                    <i class="wi wi-horizon-alt"></i>
+                    تمام صفحه
+                </button>
+            </div>
+            
+            <div class="legend">
+                <h3>راهنمای نقشه</h3>
+                <div class="legend-item">
+                    <i class="wi wi-day-sunny weather-icon"></i>
+                    <span>آفتابی</span>
+                </div>
+                <div class="legend-item">
+                    <i class="wi wi-cloud weather-icon"></i>
+                    <span>ابری</span>
+                </div>
+                <div class="legend-item">
+                    <i class="wi wi-rain weather-icon"></i>
+                    <span>بارانی</span>
+                </div>
+                <div class="legend-item">
+                    <i class="wi wi-snow weather-icon"></i>
+                    <span>برفی</span>
+                </div>
+                <div class="legend-item">
+                    <i class="wi wi-thunderstorm weather-icon"></i>
+                    <span>رعد و برق</span>
+                </div>
+            </div>
+            
+            <div class="device-indicator"></div>
+        </div>
+    </div>
+    
+    <footer>
+        اطلاعات آب و هوا با استفاده از Open-Meteo API | توسعه داده شده با Leaflet
+    </footer>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="assets/js/script.js"></script>
+</body>
+</html> 
