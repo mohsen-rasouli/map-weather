@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>نقشه آب و هوای ایران</title>
+    
+    <!-- Vazirmatn Font -->
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Weather Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/weather-icons/2.0.12/css/weather-icons.min.css" />
+    
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --bg-primary: #f8fafc;
+            --bg-secondary: #f1f5f9;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        .container {
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        
+        #map-container {
+            flex: 1;
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        #map {
+            height: 100%;
+            min-height: 600px;
+            width: 100%;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-width: 200px;
+            transition: all 0.3s ease;
+        }
+        
+        .legend h3 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+            font-size: 12px;
+        }
+        
+        .weather-icon {
+            margin-left: 5px;
+            font-size: 16px;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .weather-popup {
+            text-align: center;
+        }
+        
+        .weather-popup h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+        }
+        
+        .temp {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .weather-condition {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 5px 0;
+        }
+        
+        .weather-condition i {
+            font-size: 32px;
+            margin-left: 10px;
+        }
+        
+        .details {
+            margin-top: 10px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .refresh-btn {
+            background: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+            font-family: 'Vazirmatn';
+            display: flex;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+        
+        .refresh-btn:hover {
+            background-color: var(--bg-secondary);
+            transform: translateY(-2px);
+        }
+        
+        .refresh-btn:active {
+            transform: translateY(0);
+        }
+        
+        .refresh-btn i {
+            margin-left: 5px;
+        }
+        
+        .toggle-legend-btn {
+            background: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+            font-family: 'Vazirmatn';
+            display: none; /* Hidden on desktop by default */
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+        
+        .toggle-legend-btn:hover {
+            background-color: var(--bg-secondary);
+        }
+        
+        .toggle-legend-btn i {
+            margin-left: 5px;
+        }
+
+        .device-indicator {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            padding: 5px 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: 12px;
+            border-radius: 4px;
+            z-index: 9999;
+            display: none;
+        }
+        
+        .fullscreen-btn {
+            background: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+            font-family: 'Vazirmatn';
+            display: flex;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+        
+        .fullscreen-btn:hover {
+            background-color: var(--bg-secondary);
+            transform: translateY(-2px);
+        }
+        
+        .fullscreen-btn i {
+            margin-left: 5px;
+            font-size: 16px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 10px;
+            background-color: white;
+            color: var(--text-secondary);
+            font-size: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        /* Responsive styles */
+        @media (min-width: 1201px) {
+            /* Desktop */
+            #map {
+                min-height: 700px;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+        
+        @media (min-width: 768px) and (max-width: 1200px) {
+            /* Tablet */
+            #map {
+                min-height: 500px;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .legend {
+                max-width: 180px;
+                padding: 10px;
+            }
+        }
+        
+        @media (max-width: 767px) {
+            /* Mobile */
+            #map {
+                min-height: 400px;
+            }
+            
+            .container {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 1.3rem;
+                margin-bottom: 15px;
+            }
+            
+            .legend {
+                display: none;
+                max-width: 150px;
+                padding: 8px;
+                right: 10px;
+                bottom: 10px;
+            }
+            
+            .toggle-legend-btn {
+                display: flex;
+            }
+            
+            .controls {
+                gap: 8px;
+            }
+            
+            .refresh-btn, .fullscreen-btn, .toggle-legend-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            /* Small Mobile */
+            #map {
+                min-height: 350px;
+            }
+            
+            .container {
+                padding: 8px;
+            }
+            
+            h1 {
+                font-size: 1.2rem;
+                margin-bottom: 10px;
+            }
+        }
+        
+        /* Full screen styles */
+        .fullscreen-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 10000;
+            background-color: white;
+            overflow: hidden;
+        }
+        
+        .fullscreen-container #map-container,
+        .fullscreen-container #map {
+            width: 100%;
+            height: 100%;
+            border-radius: 0;
+            min-height: 100vh;
+        }
+        
+        .fullscreen-container h1 {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10001;
+            background-color: rgba(255, 255, 255, 0.8);
+            margin: 0;
+            padding: 10px;
+            font-size: 1.3rem;
+        }
+        
+        .fullscreen-container .container {
+            padding: 0;
+        }
+        
+        .fullscreen-close {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 10002;
+            background-color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>نقشه آب و هوای استان‌های ایران</h1>
+        
+        <div id="map-container">
+            <div id="map"></div>
+            
+            <div class="loading-overlay">
+                <div class="loader"></div>
+            </div>
+            
+            <div class="controls">
+                <button class="refresh-btn">
+                    <i class="wi wi-refresh"></i>
+                    بروزرسانی
+                </button>
+                <button class="toggle-legend-btn">
+                    <i class="wi wi-day-sunny"></i>
+                    راهنمای نقشه
+                </button>
+                <button class="fullscreen-btn">
+                    <i class="wi wi-horizon-alt"></i>
+                    تمام صفحه
+                </button>
+            </div>
+            
+            <div class="legend">
+                <h3>راهنمای نقشه</h3>
+                <div class="legend-item">
+                    <i class="wi wi-day-sunny weather-icon"></i>
+                    <span>آفتابی</span>
+                </div>
+                <div class="legend-item">
+                    <i class="wi wi-cloud weather-icon"></i>
+                    <span>ابری</span>
+                </div>
+                <div class="legend-item">
+                    <i class="wi wi-rain weather-icon"></i>
+                    <span>بارانی</span>
+                </div>
+                <div class="legend-item">
+                    <i class="wi wi-snow weather-icon"></i>
+                    <span>برفی</span>
+                </div>
+                <div class="legend-item">
+                    <i class="wi wi-thunderstorm weather-icon"></i>
+                    <span>رعد و برق</span>
+                </div>
+            </div>
+            
+            <div class="device-indicator"></div>
+        </div>
+    </div>
+    
+    <footer>
+        اطلاعات آب و هوا با استفاده از Open-Meteo API | توسعه داده شده با Leaflet
+    </footer>
+    
+    <script>
+        // تشخیص نوع دستگاه
+        const isMobile = window.innerWidth <= 767;
+        const isTablet = window.innerWidth > 767 && window.innerWidth <= 1200;
+        const isDesktop = window.innerWidth > 1200;
+        const isSmallMobile = window.innerWidth <= 480;
+        
+        // تنظیم ارتفاع نقشه براساس دستگاه
+        function setMapHeight() {
+            const mapElement = document.getElementById('map');
+            
+            if (isDesktop) {
+                mapElement.style.minHeight = '700px';
+            } else if (isTablet) {
+                mapElement.style.minHeight = '500px';
+            } else if (isMobile) {
+                mapElement.style.minHeight = '400px';
+            } else if (isSmallMobile) {
+                mapElement.style.minHeight = '350px';
+            }
+        }
+        
+        // تنظیم اولیه ارتفاع نقشه
+        setMapHeight();
+        
+        // محاسبه زوم مناسب براساس دستگاه
+        function getInitialZoom() {
+            if (isSmallMobile) return 7; // افزایش زوم برای موبایل‌های کوچک برای تمرکز بیشتر روی بوشهر و فارس
+            if (isMobile) return 7.5;
+            if (isTablet) return 8;
+            return 8; // دسکتاپ
+        }
+        
+        // ایجاد و تنظیم نقشه
+        const map = L.map('map', {
+            center: [29.1500, 52.0000], // تنظیم مرکز نقشه روی محدوده بوشهر و فارس
+            zoom: getInitialZoom(),
+            zoomControl: !isMobile, // Zoom control visible on desktop and tablet only
+            attributionControl: true,
+            minZoom: 5,
+            maxZoom: 10
+        });
+        
+        if (isMobile) {
+            // تنظیمات خاص برای موبایل
+            L.control.zoom({
+                position: 'bottomright'
+            }).addTo(map);
+        }
+
+        // اضافه کردن لایه نقشه پایه
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        });
+        
+        // لایه نقشه ساده
+        const simpleLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 19
+        });
+        
+        // لایه نقشه با جزئیات کمتر (بدون نوشته‌ها)
+        const minimalLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 19
+        });
+        
+        // تعریف مجموعه لایه‌ها
+        const baseMaps = {
+            "استاندارد": osmLayer,
+            "ساده": simpleLayer,
+            "حداقل": minimalLayer
+        };
+        
+        // اضافه کردن به نقشه
+        osmLayer.addTo(map);
+        
+        // افزودن کنترل تغییر نقشه پایه
+        L.control.layers(baseMaps, null, {
+            position: 'topleft'
+        }).addTo(map);
+        
+        // نمایش حدود ایران روی نقشه
+        fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson')
+            .then(response => response.json())
+            .then(data => {
+                const iran = data.features.find(country => country.properties.ADMIN === 'Iran');
+                if (iran) {
+                    L.geoJSON(iran, {
+                        style: {
+                            color: '#2563eb',
+                            weight: 2,
+                            opacity: 0.8,
+                            fillColor: '#dbeafe',
+                            fillOpacity: 0.2
+                        }
+                    }).addTo(map);
+                }
+            })
+            .catch(error => {
+                console.error("Error loading Iran boundary:", error);
+            });
+        
+        // توگل نمایش راهنمای نقشه در موبایل
+        document.querySelector('.toggle-legend-btn').addEventListener('click', function() {
+            const legend = document.querySelector('.legend');
+            if (legend.style.display === 'none' || getComputedStyle(legend).display === 'none') {
+                legend.style.display = 'block';
+                this.innerHTML = '<i class="wi wi-horizon-alt"></i> بستن راهنما';
+            } else {
+                legend.style.display = 'none';
+                this.innerHTML = '<i class="wi wi-day-sunny"></i> راهنمای نقشه';
+            }
+        });
+        
+        // حالت تمام صفحه
+        document.querySelector('.fullscreen-btn').addEventListener('click', function() {
+            const container = document.querySelector('.container');
+            
+            if (!document.fullscreenElement) {
+                // ورود به حالت تمام صفحه
+                container.classList.add('fullscreen-container');
+                
+                // اضافه کردن دکمه بستن
+                const closeButton = document.createElement('button');
+                closeButton.className = 'fullscreen-close';
+                closeButton.innerHTML = '×';
+                closeButton.addEventListener('click', function() {
+                    document.exitFullscreen().catch(err => console.error(err));
+                });
+                container.appendChild(closeButton);
+                
+                // درخواست تمام صفحه
+                if (container.requestFullscreen) {
+                    container.requestFullscreen();
+                } else if (container.mozRequestFullScreen) { // Firefox
+                    container.mozRequestFullScreen();
+                } else if (container.webkitRequestFullscreen) { // Chrome, Safari
+                    container.webkitRequestFullscreen();
+                } else if (container.msRequestFullscreen) { // IE/Edge
+                    container.msRequestFullscreen();
+                }
+                
+                // تغییر متن دکمه
+                this.innerHTML = '<i class="wi wi-horizon"></i> خروج از تمام صفحه';
+                
+                // بهینه سازی نقشه در حالت تمام صفحه
+                setTimeout(() => {
+                    map.invalidateSize();
+                    // فیت کردن نقشه به مرز ایران
+                    map.fitBounds([
+                        [25, 44], // جنوب غرب
+                        [40, 64]  // شمال شرق
+                    ]);
+                }, 100);
+            } else {
+                // خروج از حالت تمام صفحه
+                document.exitFullscreen().catch(err => console.error(err));
+            }
+        });
+        
+        // رویداد خروج از حالت تمام صفحه
+        document.addEventListener('fullscreenchange', function() {
+            const container = document.querySelector('.container');
+            const fullscreenBtn = document.querySelector('.fullscreen-btn');
+            
+            if (!document.fullscreenElement) {
+                // حذف کلاس و دکمه بستن
+                container.classList.remove('fullscreen-container');
+                const closeButton = document.querySelector('.fullscreen-close');
+                if (closeButton) closeButton.remove();
+                
+                // تغییر متن دکمه
+                fullscreenBtn.innerHTML = '<i class="wi wi-horizon-alt"></i> تمام صفحه';
+                
+                // بهینه سازی نقشه بعد از خروج از تمام صفحه
+                setTimeout(() => {
+                    map.invalidateSize();
+                    setMapHeight();
+                }, 100);
+            }
+        });
+        
+        // تنظیم مجدد اندازه‌ها در زمان تغییر سایز پنجره
+        window.addEventListener('resize', function() {
+            // بررسی تغییر نوع دستگاه
+            const wasMobile = isMobile;
+            const newIsMobile = window.innerWidth <= 767;
+            
+            // به‌روزرسانی متغیرهای تشخیص دستگاه
+            Object.defineProperty(window, 'isMobile', { value: newIsMobile });
+            Object.defineProperty(window, 'isTablet', { value: window.innerWidth > 767 && window.innerWidth <= 1200 });
+            Object.defineProperty(window, 'isDesktop', { value: window.innerWidth > 1200 });
+            Object.defineProperty(window, 'isSmallMobile', { value: window.innerWidth <= 480 });
+            
+            // تنظیم مجدد ارتفاع نقشه
+            setMapHeight();
+            
+            // بهینه‌سازی نقشه برای اندازه جدید
+            map.invalidateSize();
+            
+            // تنظیم کنترل‌های زوم براساس نوع دستگاه
+            if (wasMobile !== newIsMobile) {
+                if (newIsMobile) {
+                    map.removeControl(map.zoomControl);
+                    L.control.zoom({
+                        position: 'bottomright'
+                    }).addTo(map);
+                } else {
+                    // حذف کنترل زوم قبلی و افزودن در مکان پیش‌فرض
+                    map.removeControl(map.zoomControl);
+                    L.control.zoom({
+                        position: 'topleft'
+                    }).addTo(map);
+                }
+            }
+            
+            // نمایش/عدم نمایش دکمه راهنما
+            const toggleLegendBtn = document.querySelector('.toggle-legend-btn');
+            const legend = document.querySelector('.legend');
+            
+            if (newIsMobile) {
+                toggleLegendBtn.style.display = 'flex';
+                legend.style.display = 'none';
+            } else {
+                toggleLegendBtn.style.display = 'none';
+                legend.style.display = 'block';
+            }
+            
+            // اگر قبلاً مارکرها اضافه شده‌اند، آنها را دوباره با مقیاس جدید ایجاد کنیم
+            if (markersLayer && markersLayer.getLayers().length > 0) {
+                refreshMarkers();
+            }
+        });
+        
+        // محاسبه مقیاس مارکر براساس نوع دستگاه
+        function getMarkerScale() {
+            if (isSmallMobile) return 0.7;  // موبایل کوچک
+            if (isMobile) return 0.8;       // موبایل
+            if (isTablet) return 0.9;       // تبلت
+            return 1;                       // دسکتاپ
+        }
+        
+        // بازسازی مارکرها با مقیاس جدید
+        function refreshMarkers() {
+            const oldMarkers = [...markersLayer.getLayers()];
+            markersLayer.clearLayers();
+            
+            oldMarkers.forEach(marker => {
+                const weatherData = marker.weatherData;
+                
+                if (weatherData) {
+                    const newMarker = createWeatherMarker(weatherData);
+                    markersLayer.addLayer(newMarker);
+                }
+            });
+        }
+        
+        // اطلاعات استان‌های ایران
+        const iranProvinces = [
+            { name: "تهران", lat: 35.6892, lon: 51.3890 },
+            { name: "اصفهان", lat: 32.6539, lon: 51.6660 },
+            { name: "فارس", lat: 29.5918, lon: 52.5837 },
+            { name: "خراسان رضوی", lat: 36.2605, lon: 59.6168 },
+            { name: "آذربایجان شرقی", lat: 38.0793, lon: 46.2887 },
+            { name: "آذربایجان غربی", lat: 37.5488, lon: 45.0761 },
+            { name: "خوزستان", lat: 31.3273, lon: 48.6842 },
+            { name: "گیلان", lat: 37.2809, lon: 49.5924 },
+            { name: "مازندران", lat: 36.2262, lon: 52.5319 },
+            { name: "البرز", lat: 35.9960, lon: 50.9289 },
+            { name: "کرمان", lat: 30.2839, lon: 57.0834 },
+            { name: "کرمانشاه", lat: 34.3142, lon: 47.0650 },
+            { name: "همدان", lat: 34.7982, lon: 48.5148 },
+            { name: "یزد", lat: 31.8974, lon: 54.3569 },
+            { name: "سیستان و بلوچستان", lat: 29.4926, lon: 60.8666 },
+            { name: "قم", lat: 34.6416, lon: 50.8746 },
+            { name: "هرمزگان", lat: 27.1888, lon: 56.2770 },
+            { name: "لرستان", lat: 33.5818, lon: 48.3988 },
+            { name: "مرکزی", lat: 34.6962, lon: 49.6911 },
+            { name: "اردبیل", lat: 38.2498, lon: 48.2935 },
+            { name: "گلستان", lat: 36.8401, lon: 54.4388 },
+            { name: "زنجان", lat: 36.6769, lon: 48.4963 },
+            { name: "قزوین", lat: 36.0881, lon: 49.8547 },
+            { name: "کردستان", lat: 35.9554, lon: 47.1362 },
+            { name: "سمنان", lat: 35.5732, lon: 53.3963 },
+            { name: "بوشهر", lat: 28.9234, lon: 50.8203 },
+            { name: "چهارمحال و بختیاری", lat: 31.9614, lon: 50.8456 },
+            { name: "کهگیلویه و بویراحمد", lat: 30.6512, lon: 51.1933 },
+            { name: "ایلام", lat: 33.6384, lon: 46.4227 },
+            { name: "خراسان شمالی", lat: 37.4710, lon: 57.1013 },
+            { name: "خراسان جنوبی", lat: 32.8649, lon: 59.2163 }
+        ];
+        
+        // آیکون‌های مربوط به شرایط مختلف آب و هوایی - با افزودن آیکون پیش‌فرض
+        const weatherIcons = {
+            "01d": "wi-day-sunny", // آسمان صاف (روز)
+            "01n": "wi-night-clear", // آسمان صاف (شب)
+            "02d": "wi-day-cloudy", // کمی ابری (روز)
+            "02n": "wi-night-alt-cloudy", // کمی ابری (شب)
+            "03d": "wi-cloud", // نیمه ابری
+            "03n": "wi-cloud",
+            "04d": "wi-cloudy", // ابری
+            "04n": "wi-cloudy",
+            "09d": "wi-showers", // بارش خفیف
+            "09n": "wi-showers",
+            "10d": "wi-day-rain", // بارانی (روز)
+            "10n": "wi-night-alt-rain", // بارانی (شب)
+            "11d": "wi-thunderstorm", // رعد و برق
+            "11n": "wi-thunderstorm",
+            "13d": "wi-snow", // برف
+            "13n": "wi-snow",
+            "50d": "wi-fog", // مه
+            "50n": "wi-fog",
+            "default": "wi-thermometer" // آیکون پیش‌فرض
+        };
+        
+        // دریافت اطلاعات آب و هوا برای یک استان
+        async function getWeatherForProvince(province) {
+            try {
+                // استفاده از API رایگان Open-Meteo
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${province.lat}&longitude=${province.lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&timezone=auto`;
+                const response = await fetch(url);
+                
+                // بررسی وضعیت پاسخ
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // بررسی اینکه داده‌های دریافتی معتبر هستند
+                if (!data || !data.current) {
+                    throw new Error("داده‌های نامعتبر دریافت شد");
+                }
+                
+                // تبدیل کد آب و هوای Open-Meteo به کد مشابه OpenWeatherMap
+                const weatherCode = data.current.weather_code;
+                const iconInfo = getWeatherIconFromCode(weatherCode);
+                
+                return {
+                    name: province.name,
+                    lat: province.lat,
+                    lon: province.lon,
+                    temp: Math.round(data.current.temperature_2m),
+                    weatherId: weatherCode,
+                    weatherCode: weatherCode,
+                    weatherMain: iconInfo.main,
+                    weatherDescription: iconInfo.description,
+                    icon: iconInfo.icon,
+                    humidity: data.current.relative_humidity_2m,
+                    precipitation: data.current.precipitation,
+                    windSpeed: data.current.wind_speed_10m,
+                    time: new Date(data.current.time),
+                    units: {
+                        temp: data.current_units.temperature_2m,
+                        humidity: data.current_units.relative_humidity_2m,
+                        precipitation: data.current_units.precipitation,
+                        windSpeed: data.current_units.wind_speed_10m
+                    }
+                };
+            } catch (error) {
+                console.error(`خطا در دریافت اطلاعات آب و هوا برای ${province.name}:`, error);
+                
+                // برگرداندن داده مصنوعی برای نمایش آیکون به جای خطا
+                return {
+                    name: province.name,
+                    lat: province.lat,
+                    lon: province.lon,
+                    temp: Math.round(10 + Math.random() * 20), // دمای تصادفی بین 10 تا 30 درجه
+                    weatherId: 0,
+                    weatherCode: 0,
+                    weatherMain: "Clear",
+                    weatherDescription: "آسمان صاف",
+                    icon: "wi-day-sunny",
+                    humidity: 60,
+                    precipitation: 0,
+                    windSpeed: 2.5,
+                    time: new Date(),
+                    isFallback: true, // نشان‌دهنده داده مصنوعی
+                    units: {
+                        temp: "°C",
+                        humidity: "%",
+                        precipitation: "mm",
+                        windSpeed: "km/h"
+                    }
+                };
+            }
+        }
+        
+        // تبدیل کد آب و هوای Open-Meteo به آیکون و توضیحات
+        function getWeatherIconFromCode(code) {
+            // جدول تبدیل کدهای آب و هوای Open-Meteo به آیکون و توضیحات
+            // https://open-meteo.com/en/docs
+            const codeMapping = {
+                0: { icon: "wi-day-sunny", main: "Clear", description: "آسمان صاف" },
+                1: { icon: "wi-day-sunny", main: "Clear", description: "عمدتاً صاف" },
+                2: { icon: "wi-day-cloudy", main: "Partly Cloudy", description: "نیمه ابری" },
+                3: { icon: "wi-cloud", main: "Cloudy", description: "ابری" },
+                45: { icon: "wi-fog", main: "Fog", description: "مه" },
+                48: { icon: "wi-fog", main: "Fog", description: "مه همراه با یخ‌زدگی" },
+                51: { icon: "wi-sprinkle", main: "Drizzle", description: "نم‌نم باران، شدت کم" },
+                53: { icon: "wi-sprinkle", main: "Drizzle", description: "نم‌نم باران، شدت متوسط" },
+                55: { icon: "wi-sprinkle", main: "Drizzle", description: "نم‌نم باران، شدت زیاد" },
+                56: { icon: "wi-sleet", main: "Freezing Drizzle", description: "نم‌نم باران یخ‌زده، شدت کم" },
+                57: { icon: "wi-sleet", main: "Freezing Drizzle", description: "نم‌نم باران یخ‌زده، شدت زیاد" },
+                61: { icon: "wi-rain", main: "Rain", description: "باران، شدت کم" },
+                63: { icon: "wi-rain", main: "Rain", description: "باران، شدت متوسط" },
+                65: { icon: "wi-rain", main: "Rain", description: "باران، شدت زیاد" },
+                66: { icon: "wi-sleet", main: "Freezing Rain", description: "باران یخ‌زده، شدت کم" },
+                67: { icon: "wi-sleet", main: "Freezing Rain", description: "باران یخ‌زده، شدت زیاد" },
+                71: { icon: "wi-snow", main: "Snow", description: "برف، شدت کم" },
+                73: { icon: "wi-snow", main: "Snow", description: "برف، شدت متوسط" },
+                75: { icon: "wi-snow", main: "Snow", description: "برف، شدت زیاد" },
+                77: { icon: "wi-snow", main: "Snow Grains", description: "دانه‌های برف" },
+                80: { icon: "wi-showers", main: "Rain Showers", description: "رگبار باران، شدت کم" },
+                81: { icon: "wi-showers", main: "Rain Showers", description: "رگبار باران، شدت متوسط" },
+                82: { icon: "wi-showers", main: "Rain Showers", description: "رگبار باران، شدت زیاد" },
+                85: { icon: "wi-snow", main: "Snow Showers", description: "بارش برف، شدت کم" },
+                86: { icon: "wi-snow", main: "Snow Showers", description: "بارش برف، شدت زیاد" },
+                95: { icon: "wi-thunderstorm", main: "Thunderstorm", description: "رعد و برق" },
+                96: { icon: "wi-thunderstorm", main: "Thunderstorm", description: "رعد و برق با تگرگ، شدت کم" },
+                99: { icon: "wi-thunderstorm", main: "Thunderstorm", description: "رعد و برق با تگرگ، شدت زیاد" }
+            };
+
+            return codeMapping[code] || { icon: "wi-day-sunny", main: "Unknown", description: "نامشخص" };
+        }
+
+        // تبدیل وضعیت آب و هوا به فارسی بر اساس کد آب و هوای Open-Meteo
+        function getWeatherInPersian(weatherCode) {
+            const code = parseInt(weatherCode);
+            const iconInfo = getWeatherIconFromCode(code);
+            return iconInfo.description;
+        }
+
+        // ایجاد مارکر آب و هوا برای استان
+        function createWeatherMarker(weatherData) {
+            // انتخاب آیکون مناسب
+            const iconClass = weatherData.icon || "wi-day-sunny";
+            const weatherInPersian = weatherData.weatherDescription || getWeatherInPersian(weatherData.weatherCode);
+            
+            // تعیین رنگ پس‌زمینه بر اساس دما
+            let bgColor = "#ffffff";
+            let textColor = "#1e293b";
+            
+            if (weatherData.temp >= 35) {
+                bgColor = "#fdba74"; // نارنجی برای دمای بالا
+                textColor = "#7c2d12";
+            } else if (weatherData.temp >= 25) {
+                bgColor = "#fef3c7"; // زرد برای دمای گرم
+                textColor = "#92400e";
+            } else if (weatherData.temp <= 5) {
+                bgColor = "#bfdbfe"; // آبی برای دمای سرد
+                textColor = "#1e40af";
+            } else if (weatherData.temp <= 0) {
+                bgColor = "#dbeafe"; // آبی روشن برای دمای زیر صفر
+                textColor = "#1e3a8a";
+            }
+            
+            // اضافه کردن پرچم برای استان‌های بوشهر و فارس
+            let provinceHighlight = '';
+            let sizeMultiplier = 1;
+            
+            // تنظیم نشانگر ویژه و اندازه بزرگتر برای بوشهر و فارس
+            if (weatherData.name === "بوشهر") {
+                provinceHighlight = `<div style="position: absolute; top: -10px; left: -10px; background: #ef4444; color: white; border-radius: 4px; padding: 2px 4px; font-size: 10px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">بوشهر</div>`;
+                sizeMultiplier = 1.4; // 40% بزرگتر
+                bgColor = "#fecaca"; // رنگ متفاوت برای بوشهر
+            } else if (weatherData.name === "فارس") {
+                provinceHighlight = `<div style="position: absolute; top: -10px; left: -10px; background: #3b82f6; color: white; border-radius: 4px; padding: 2px 4px; font-size: 10px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">فارس</div>`;
+                sizeMultiplier = 1.4; // 40% بزرگتر
+                bgColor = "#bfdbfe"; // رنگ متفاوت برای فارس
+            }
+            
+            // اضافه کردن علامت هشدار برای داده‌های مصنوعی
+            const fallbackIndicator = weatherData.isFallback ? 
+                `<div style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border-radius: 50%; width: 14px; height: 14px; font-size: 10px; display: flex; align-items: center; justify-content: center;">!</div>` : '';
+            
+            // تنظیم اندازه آیکون براساس نوع دستگاه و اهمیت استان
+            const baseScale = getMarkerScale();
+            const scale = baseScale * sizeMultiplier;
+            const size = Math.round(70 * scale);
+            const fontSize = Math.round(30 * scale);
+            const textSize = Math.round(14 * scale);
+            
+            // تغییر ضخامت حاشیه برای استان‌های مهم
+            const border = (weatherData.name === "بوشهر" || weatherData.name === "فارس") ? 
+                `border: 3px solid ${weatherData.name === "بوشهر" ? "#ef4444" : "#3b82f6"};` : '';
+            
+            // ایجاد آیکون سفارشی برای مارکر
+            const icon = L.divIcon({
+                className: 'weather-marker-icon',
+                html: `
+                    <div style="background-color: ${bgColor}; border-radius: 50%; width: ${size}px; height: ${size}px; display: flex; 
+                         flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; ${border}">
+                        ${fallbackIndicator}
+                        ${provinceHighlight}
+                        <i class="wi ${iconClass}" style="font-size: ${fontSize}px; color: ${textColor};"></i>
+                        <div style="font-weight: bold; margin-top: 4px; color: ${textColor}; font-size: ${textSize}px;">${weatherData.temp}°C</div>
+                    </div>
+                `,
+                iconSize: [size, size],
+                iconAnchor: [size/2, size/2],
+                popupAnchor: [0, -(size/2)]
+            });
+            
+            // پیام برای داده‌های مصنوعی
+            const fallbackMessage = weatherData.isFallback ? 
+                '<div style="color: #ef4444; font-size: 12px; margin-top: 5px;">اطلاعات تخمینی (خطا در اتصال به API)</div>' : '';
+            
+            // اضافه کردن اطلاعات بارش در صورت وجود
+            const precipitationInfo = weatherData.precipitation > 0 ? 
+                `<div>بارش: ${weatherData.precipitation} ${weatherData.units?.precipitation || 'mm'}</div>` : '';
+            
+            // ایجاد پاپ‌آپ با اطلاعات آب و هوا
+            const popupContent = `
+                <div class="weather-popup">
+                    <h3>${weatherData.name}</h3>
+                    <div class="temp">${weatherData.temp}°C</div>
+                    <div class="weather-condition">
+                        <i class="wi ${iconClass}"></i>
+                        <span>${weatherInPersian}</span>
+                    </div>
+                    <div class="details">
+                        <div>رطوبت: ${weatherData.humidity}%</div>
+                        ${precipitationInfo}
+                        <div>سرعت باد: ${weatherData.windSpeed} ${weatherData.units?.windSpeed || 'km/h'}</div>
+                        <div>بروزرسانی: ${weatherData.time.toLocaleTimeString("fa-IR")}</div>
+                    </div>
+                    ${fallbackMessage}
+                </div>
+            `;
+            
+            const marker = L.marker([weatherData.lat, weatherData.lon], { icon: icon })
+                .bindPopup(popupContent, { minWidth: isMobile ? 150 : 200 });
+            
+            // ذخیره داده‌های آب و هوا در مارکر برای استفاده مجدد
+            marker.weatherData = weatherData;
+            
+            return marker;
+        }
+        
+        // لایه‌ای برای نگهداری تمام مارکرها
+        const markersLayer = L.layerGroup().addTo(map);
+        
+        // برجسته کردن استان‌های بوشهر و فارس
+        function highlightBushehrAndFars() {
+            // یافتن استان‌های بوشهر و فارس
+            const bushehr = iranProvinces.find(p => p.name === "بوشهر");
+            const fars = iranProvinces.find(p => p.name === "فارس");
+            
+            if (bushehr && fars) {
+                // اضافه کردن دایره بزرگتر برای نمایش اهمیت این استان‌ها
+                L.circle([bushehr.lat, bushehr.lon], {
+                    color: '#ef4444',
+                    fillColor: '#fee2e2',
+                    fillOpacity: 0.3,
+                    radius: 25000,
+                    weight: 2
+                }).addTo(map);
+                
+                L.circle([fars.lat, fars.lon], {
+                    color: '#3b82f6',
+                    fillColor: '#dbeafe',
+                    fillOpacity: 0.3,
+                    radius: 25000,
+                    weight: 2
+                }).addTo(map);
+            }
+        }
+        
+        // دریافت و نمایش اطلاعات آب و هوا برای تمام استان‌ها
+        async function fetchAndDisplayWeather() {
+            try {
+                // نمایش لودینگ
+                document.querySelector('.loading-overlay').style.display = 'flex';
+                
+                // پاک کردن مارکرهای قبلی
+                markersLayer.clearLayers();
+                
+                // برجسته کردن استان‌های بوشهر و فارس
+                highlightBushehrAndFars();
+                
+                // یافتن استان‌های بوشهر و فارس و اولویت‌بندی آن‌ها
+                const bushehrIndex = iranProvinces.findIndex(p => p.name === "بوشهر");
+                const farsIndex = iranProvinces.findIndex(p => p.name === "فارس");
+                
+                // اولویت‌بندی استان‌ها
+                let prioritizedProvinces = [...iranProvinces];
+                
+                // حذف بوشهر و فارس از آرایه اصلی
+                if (bushehrIndex !== -1) {
+                    prioritizedProvinces.splice(bushehrIndex, 1);
+                }
+                if (farsIndex !== -1) {
+                    // اگر فارس بعد از بوشهر است، ایندکس آن تغییر می‌کند
+                    const adjustedFarsIndex = farsIndex > bushehrIndex ? farsIndex - 1 : farsIndex;
+                    prioritizedProvinces.splice(adjustedFarsIndex, 1);
+                }
+                
+                // اضافه کردن بوشهر و فارس به ابتدای آرایه
+                if (bushehrIndex !== -1) {
+                    prioritizedProvinces.unshift(iranProvinces[bushehrIndex]);
+                }
+                if (farsIndex !== -1) {
+                    prioritizedProvinces.unshift(iranProvinces[farsIndex]);
+                }
+                
+                // برای جلوگیری از محدودیت تعداد درخواست‌ها، استان‌ها را گروه‌بندی می‌کنیم
+                const batchSize = 5; // تعداد درخواست‌های همزمان
+                let successCount = 0;
+                let errorCount = 0;
+                
+                // تقسیم استان‌ها به گروه‌های کوچکتر
+                for (let i = 0; i < prioritizedProvinces.length; i += batchSize) {
+                    const batch = prioritizedProvinces.slice(i, i + batchSize);
+                    
+                    // ایجاد تأخیر بین گروه‌های درخواست
+                    if (i > 0) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                    
+                    try {
+                        // دریافت اطلاعات آب و هوا برای گروه فعلی به صورت همزمان
+                        const weatherPromises = batch.map(getWeatherForProvince);
+                        const weatherDataList = await Promise.all(weatherPromises);
+                        
+                        // ایجاد و اضافه کردن مارکرها به نقشه
+                        weatherDataList.forEach(weatherData => {
+                            const marker = createWeatherMarker(weatherData);
+                            
+                            // بزرگتر نمایش دادن آیکون‌های بوشهر و فارس
+                            if (weatherData.name === "بوشهر" || weatherData.name === "فارس") {
+                                // باز کردن پاپ‌آپ برای نمایش اطلاعات بوشهر و فارس به صورت خودکار
+                                setTimeout(() => {
+                                    marker.openPopup();
+                                }, weatherData.name === "بوشهر" ? 1000 : 2000);
+                            }
+                            
+                            markersLayer.addLayer(marker);
+                            successCount += weatherData.isFallback ? 0 : 1;
+                            errorCount += weatherData.isFallback ? 1 : 0;
+                        });
+                    } catch (batchError) {
+                        console.error("Error processing batch:", batchError);
+                        errorCount += batch.length;
+                    }
+                }
+                
+                // نمایش وضعیت دریافت داده‌ها
+                if (errorCount > 0) {
+                    const statusMsg = document.createElement("div");
+                    statusMsg.className = "status-message";
+                    statusMsg.style.position = "absolute";
+                    statusMsg.style.bottom = "20px";
+                    statusMsg.style.left = "20px";
+                    statusMsg.style.backgroundColor = "rgba(255, 255, 255, 0.9)";
+                    statusMsg.style.padding = "10px";
+                    statusMsg.style.borderRadius = "8px";
+                    statusMsg.style.boxShadow = "0 2px 5px rgba(0,0,0,0.2)";
+                    statusMsg.style.zIndex = "1000";
+                    statusMsg.style.fontSize = "12px";
+                    
+                    statusMsg.innerHTML = `
+                        <div>${successCount} استان با موفقیت به‌روزرسانی شد.</div>
+                        <div style="color: #ef4444;">${errorCount} استان با خطا مواجه شد (نمایش داده‌های تخمینی).</div>
+                    `;
+                    
+                    document.getElementById("map-container").appendChild(statusMsg);
+                    
+                    // حذف پیام بعد از چند ثانیه
+                    setTimeout(() => {
+                        statusMsg.remove();
+                    }, 5000);
+                }
+                
+            } catch (error) {
+                console.error("Error fetching weather data:", error);
+                alert("خطا در دریافت اطلاعات آب و هوا. لطفاً مجدداً تلاش کنید.");
+            } finally {
+                // مخفی کردن لودینگ
+                document.querySelector('.loading-overlay').style.display = 'none';
+            }
+        }
+        
+        // دکمه بروزرسانی
+        document.querySelector('.refresh-btn').addEventListener('click', fetchAndDisplayWeather);
+        
+        // دریافت اطلاعات در زمان بارگذاری صفحه
+        document.addEventListener('DOMContentLoaded', fetchAndDisplayWeather);
+
+        // بررسی بارگذاری آیکون‌های آب و هوا
+        function checkWeatherIconsLoaded() {
+            // یک آیکون تست ایجاد می‌کنیم
+            const testIcon = document.createElement('i');
+            testIcon.className = 'wi wi-day-sunny';
+            testIcon.style.visibility = 'hidden';
+            document.body.appendChild(testIcon);
+            
+            // بررسی می‌کنیم که آیا آیکون درست بارگذاری شده است
+            const computedStyle = window.getComputedStyle(testIcon);
+            const fontFamily = computedStyle.getPropertyValue('font-family');
+            document.body.removeChild(testIcon);
+            
+            // اگر فونت آیکون درست بارگذاری نشده باشد
+            if (!fontFamily.includes('weathericons')) {
+                console.warn("Weather icons not loaded properly, attempting to reload");
+                
+                // تلاش مجدد برای بارگذاری فونت آیکون‌ها
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = 'https://cdnjs.cloudflare.com/ajax/libs/weather-icons/2.0.12/css/weather-icons.min.css';
+                document.head.appendChild(link);
+                
+                // جایگزین با CDN دیگر اگر اولی کار نکرد
+                setTimeout(() => {
+                    if (!document.querySelector('i.wi').offsetHeight) {
+                        const alternativeLink = document.createElement('link');
+                        alternativeLink.rel = 'stylesheet';
+                        alternativeLink.href = 'https://cdn.jsdelivr.net/gh/erikflowers/weather-icons@master/css/weather-icons.min.css';
+                        document.head.appendChild(alternativeLink);
+                    }
+                }, 1000);
+            }
+        }
+        
+        // چک کردن بارگذاری آیکون‌ها
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(checkWeatherIconsLoaded, 500);
+        });
+    </script>
+</body>
+</html> 

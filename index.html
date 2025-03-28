@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نمایش مسیر مامور قرائت</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- SheetJS (xlsx) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        
+        .upload-section {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            flex-grow: 1;
+            min-width: 150px;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .download-link {
+            color: #3498db;
+            text-decoration: underline;
+            cursor: pointer;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        
+        .download-link:hover {
+            color: #2980b9;
+        }
+        
+        #map {
+            height: 500px;
+            width: 100%;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .info-box {
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .file-info {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e8f4fc;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        .error {
+            color: #d9534f;
+            font-weight: bold;
+        }
+        
+        .help-text {
+            font-size: 12px;
+            color: #555;
+            margin-top: 5px;
+        }
+        
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 2s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .map-controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .map-button {
+            flex: 1;
+            min-width: 120px;
+            background-color: #27ae60;
+        }
+        
+        .map-button:hover {
+            background-color: #219653;
+        }
+        
+        #resetButton {
+            background-color: #e74c3c;
+        }
+        
+        #resetButton:hover {
+            background-color: #c0392b;
+        }
+        
+        #exportButton {
+            background-color: #9b59b6;
+        }
+        
+        #exportButton:hover {
+            background-color: #8e44ad;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>نمایش مسیر مامور قرائت</h1>
+        
+        <div class="upload-section">
+            <p>فایل اکسل خود را انتخاب کنید</p>
+            <input type="file" id="fileInput" accept=".xlsx, .xls" />
+            <button id="loadButton">بارگذاری فایل</button>
+            <div class="help-text">
+                فایل اکسل باید شامل ستون‌های: (C) نام مامور، (D) نام انشعاب، (E) تاریخ، (F) ساعت، (Q) مختصات باشد.
+                <br/>
+                داده‌ها باید از ردیف 4 فایل اکسل شروع شوند.
+                <br/>
+                <a href="#" id="downloadSample" class="download-link">دانلود نمونه فایل اکسل</a>
+            </div>
+            <div id="fileInfo" class="file-info"></div>
+        </div>
+        
+        <div class="filters" id="filtersContainer" style="display: none;">
+            <select id="dateFilter">
+                <option value="">انتخاب تاریخ</option>
+            </select>
+            
+            <select id="officerFilter">
+                <option value="">انتخاب مامور</option>
+            </select>
+            
+            <button id="showMapButton">نمایش نقشه</button>
+        </div>
+        
+        <div id="mapContainer" style="display: none;">
+            <div id="map"></div>
+            <div class="map-controls">
+                <button id="animateButton" class="map-button">نمایش انیمیشن مسیر</button>
+                <button id="resetButton" class="map-button">بازنشانی</button>
+                <button id="exportButton" class="map-button">دریافت خروجی</button>
+            </div>
+            <div class="info-box" id="infoBox"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Global variables
+        let excelData = null;
+        const dateSelect = document.getElementById('dateFilter');
+        const officerSelect = document.getElementById('officerFilter');
+        const filtersContainer = document.getElementById('filtersContainer');
+        const mapContainer = document.getElementById('mapContainer');
+        const infoBox = document.getElementById('infoBox');
+        let map = null;
+        let mapMarkers = [];
+        let mapPolyline = null;
+        let animation = null;
+        let animationSpeed = 500; // milliseconds between points
+        
+        // Initialize map
+        function initMap() {
+            if (map) {
+                map.remove();
+            }
+            
+            map = L.map('map').setView([29.5926, 52.5836], 12); // Default view centered on Iran
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+        }
+        
+        // Convert Persian digits to English
+        function convertPersianToEnglish(str) {
+            if (!str) return str;
+            
+            const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+            return str.toString().replace(/[۰-۹]/g, function(d) {
+                return persianDigits.indexOf(d);
+            });
+        }
+        
+        // Parse Persian date to Date object
+        function parsePersianDate(dateStr, timeStr) {
+            if (!dateStr) return null;
+            
+            // Convert Persian digits to English
+            const englishDateStr = convertPersianToEnglish(dateStr);
+            const parts = englishDateStr.split('/');
+            
+            if (parts.length !== 3) return null;
+            
+            // Persian date format: YYYY/MM/DD
+            const year = parseInt(parts[0]);
+            const month = parseInt(parts[1]) - 1;
+            const day = parseInt(parts[2]);
+            
+            let hours = 0, minutes = 0, seconds = 0;
+            
+            if (timeStr) {
+                const timeParts = timeStr.split(':');
+                hours = parseInt(timeParts[0] || 0);
+                minutes = parseInt(timeParts[1] || 0);
+                seconds = parseInt(timeParts[2] || 0);
+            }
+            
+            // Create a date object - note: this is approximate as we're using Gregorian calendar
+            const date = new Date(year, month, day, hours, minutes, seconds);
+            return date;
+        }
+        
+        // Parse coordinates
+        function parseCoordinates(coordStr) {
+            if (!coordStr) return null;
+            
+            const parts = coordStr.split(',');
+            if (parts.length !== 2) return null;
+            
+            const lat = parseFloat(parts[0]);
+            const lng = parseFloat(parts[1]);
+            
+            if (isNaN(lat) || isNaN(lng)) return null;
+            
+            return [lat, lng];
+        }
+        
+        // Process Excel data
+        function processExcelData(data) {
+            excelData = [];
+            const dates = new Set();
+            const officers = new Set();
+            
+            // Show file info
+            const fileInfo = document.getElementById('fileInfo');
+            fileInfo.style.display = 'block';
+            fileInfo.innerHTML = `<strong>تعداد رکوردها:</strong> ${data.length - 4}`;
+            
+            let validRecords = 0;
+            let invalidCoordinates = 0;
+            let invalidDates = 0;
+            
+            // Start from row 4 (skip headers)
+            for (let i = 4; i < data.length; i++) {
+                const row = data[i];
+                
+                // Skip if essential fields are missing
+                if (!row.c || !row.e || !row.q) continue;
+                
+                const officerName = row.c;
+                const subscriberName = row.d;
+                const persianDate = row.e;
+                const time = row.f;
+                const coordinates = row.q;
+                
+                // Add to unique filters
+                officers.add(officerName);
+                dates.add(persianDate);
+                
+                // Parse coordinates
+                const coordArray = parseCoordinates(coordinates);
+                if (!coordArray) {
+                    invalidCoordinates++;
+                    continue;
+                }
+                
+                // Parse date
+                const date = parsePersianDate(persianDate, time);
+                if (!date) {
+                    invalidDates++;
+                    continue;
+                }
+                
+                // Add to processed data
+                excelData.push({
+                    officerName,
+                    subscriberName,
+                    persianDate,
+                    time,
+                    date,
+                    coordinates: coordArray
+                });
+                
+                validRecords++;
+            }
+            
+            // Update file info with validation results
+            fileInfo.innerHTML += `
+                <br><strong>رکوردهای معتبر:</strong> ${validRecords}
+                <br><strong>مختصات نامعتبر:</strong> ${invalidCoordinates}
+                <br><strong>تاریخ‌های نامعتبر:</strong> ${invalidDates}
+                <br><strong>تعداد مامورین:</strong> ${officers.size}
+                <br><strong>تعداد تاریخ‌ها:</strong> ${dates.size}
+            `;
+            
+            if (validRecords === 0) {
+                fileInfo.innerHTML += '<p class="error">هیچ رکورد معتبری برای نمایش یافت نشد. لطفاً مطمئن شوید که فایل اکسل شما دارای ساختار مورد نیاز است.</p>';
+                return;
+            }
+            
+            // Populate filter dropdowns
+            populateFilters(Array.from(dates), Array.from(officers));
+            
+            // Show filters
+            filtersContainer.style.display = 'flex';
+        }
+        
+        // Populate filter dropdowns
+        function populateFilters(dates, officers) {
+            // Sort dates
+            dates.sort();
+            
+            // Sort officer names alphabetically
+            officers.sort();
+            
+            // Clear existing options
+            dateSelect.innerHTML = '<option value="">انتخاب تاریخ</option>';
+            officerSelect.innerHTML = '<option value="">انتخاب مامور</option>';
+            
+            // Add date options
+            dates.forEach(date => {
+                const option = document.createElement('option');
+                option.value = date;
+                option.textContent = date;
+                dateSelect.appendChild(option);
+            });
+            
+            // Add officer options
+            officers.forEach(officer => {
+                const option = document.createElement('option');
+                option.value = officer;
+                option.textContent = officer;
+                officerSelect.appendChild(option);
+            });
+        }
+        
+        // Filter and display data on map
+        function displayOnMap() {
+            const selectedDate = dateSelect.value;
+            const selectedOfficer = officerSelect.value;
+            
+            if (!selectedDate || !selectedOfficer) {
+                alert('لطفاً تاریخ و مامور را انتخاب کنید');
+                return;
+            }
+            
+            // Filter data
+            const filteredData = excelData.filter(item => 
+                item.persianDate === selectedDate && 
+                item.officerName === selectedOfficer
+            );
+            
+            if (filteredData.length === 0) {
+                alert('هیچ داده‌ای برای نمایش یافت نشد');
+                return;
+            }
+            
+            // Sort by time
+            filteredData.sort((a, b) => a.date - b.date);
+            
+            // Show map container
+            mapContainer.style.display = 'block';
+            
+            // Initialize map if not already done
+            if (!map) {
+                initMap();
+            } else {
+                // Clear existing markers and polyline
+                clearMap();
+            }
+            
+            // Add markers and polyline
+            addMarkersAndPolyline(filteredData);
+            
+            // Update info box
+            updateInfoBox(filteredData);
+        }
+        
+        // Clear map markers and polyline
+        function clearMap() {
+            // Remove markers
+            mapMarkers.forEach(marker => map.removeLayer(marker));
+            mapMarkers = [];
+            
+            // Remove polyline
+            if (mapPolyline) {
+                map.removeLayer(mapPolyline);
+                mapPolyline = null;
+            }
+        }
+        
+        // Add markers and polyline to map
+        function addMarkersAndPolyline(data) {
+            const latlngs = [];
+            
+            // Add markers for each point
+            data.forEach((point, index) => {
+                const [lat, lng] = point.coordinates;
+                latlngs.push([lat, lng]);
+                
+                // Determine marker color based on position
+                let markerColor, markerOptions;
+                
+                if (index === 0) {
+                    // First point - green
+                    markerColor = 'green';
+                    markerOptions = { title: 'شروع: ' + point.time };
+                } else if (index === data.length - 1) {
+                    // Last point - red
+                    markerColor = 'red';
+                    markerOptions = { title: 'پایان: ' + point.time };
+                } else {
+                    // Middle points - blue
+                    markerColor = 'blue';
+                    markerOptions = { title: point.time };
+                }
+                
+                // Create custom icon
+                const icon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
+                    iconSize: [15, 15],
+                    iconAnchor: [7, 7]
+                });
+                
+                // Create marker
+                const marker = L.marker([lat, lng], { icon: icon, ...markerOptions })
+                    .addTo(map)
+                    .bindPopup(`
+                        <strong>مامور:</strong> ${point.officerName}<br>
+                        <strong>مشترک:</strong> ${point.subscriberName || 'نامشخص'}<br>
+                        <strong>زمان:</strong> ${point.time}<br>
+                        <strong>مختصات:</strong> ${lat}, ${lng}
+                    `);
+                
+                mapMarkers.push(marker);
+            });
+            
+            // Add polyline connecting all points
+            mapPolyline = L.polyline([], { color: 'blue', weight: 3, opacity: 0.7 }).addTo(map);
+            
+            // Only show start point initially - full path will be shown on reset
+            if (latlngs.length > 0) {
+                map.setView(latlngs[0], 15);
+            }
+            
+            // Enable animation button
+            document.getElementById('animateButton').disabled = false;
+            
+            // Save latlngs for animation
+            mapPolyline.latlngs = latlngs;
+            
+            // Draw full path immediately
+            resetAnimation();
+        }
+        
+        // Update info box with statistics
+        function updateInfoBox(data) {
+            const startTime = data[0].time;
+            const endTime = data[data.length - 1].time;
+            const pointCount = data.length;
+            
+            infoBox.innerHTML = `
+                <strong>تعداد نقاط:</strong> ${pointCount} |
+                <strong>زمان شروع:</strong> ${startTime} |
+                <strong>زمان پایان:</strong> ${endTime} |
+                <strong>مامور:</strong> ${data[0].officerName} |
+                <strong>تاریخ:</strong> ${data[0].persianDate}
+            `;
+        }
+        
+        // Generate sample Excel file
+        function generateSampleExcel() {
+            // Create workbook and worksheet
+            const wb = XLSX.utils.book_new();
+            const wsData = [
+                { A: 'ردیف', B: 'کد', C: 'نام مامور', D: 'نام انشعاب', E: 'تاریخ', F: 'ساعت', G: 'شماره', H: 'آدرس', Q: 'مختصات' },
+                { A: '', B: '', C: '', D: '', E: '', F: '', G: '', H: '', Q: '' },
+                { A: '', B: '', C: '', D: '', E: '', F: '', G: '', H: '', Q: '' },
+                { A: '1', B: '101', C: 'علی محمدی', D: 'شرکت آب و فاضلاب', E: '۱۴۰۴/۰۱/۰۳', F: '09:04:00', G: '123456', H: 'خیابان اصلی', Q: '27.6411812,52.4600372' },
+                { A: '2', B: '102', C: 'علی محمدی', D: 'مسکونی همت', E: '۱۴۰۴/۰۱/۰۳', F: '09:15:00', G: '123457', H: 'خیابان فرعی', Q: '27.6450000,52.4610000' },
+                { A: '3', B: '103', C: 'علی محمدی', D: 'تجاری پارس', E: '۱۴۰۴/۰۱/۰۳', F: '09:30:00', G: '123458', H: 'میدان شهر', Q: '27.6500000,52.4620000' },
+                { A: '4', B: '104', C: 'رضا کریمی', D: 'مسکونی البرز', E: '۱۴۰۴/۰۱/۰۴', F: '10:00:00', G: '123459', H: 'خیابان شمالی', Q: '27.6550000,52.4630000' },
+                { A: '5', B: '105', C: 'رضا کریمی', D: 'تجاری زاگرس', E: '۱۴۰۴/۰۱/۰۴', F: '10:20:00', G: '123460', H: 'خیابان جنوبی', Q: '27.6600000,52.4640000' }
+            ];
+            
+            const ws = XLSX.utils.json_to_sheet(wsData, { header: Object.keys(wsData[0]) });
+            XLSX.utils.book_append_sheet(wb, ws, 'نمونه داده');
+            
+            // Generate and download file
+            XLSX.writeFile(wb, 'sample_reading_data.xlsx');
+        }
+        
+        // Event Listeners
+        document.getElementById('loadButton').addEventListener('click', function() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            const fileInfo = document.getElementById('fileInfo');
+            
+            if (!file) {
+                alert('لطفاً یک فایل اکسل انتخاب کنید');
+                return;
+            }
+            
+            fileInfo.style.display = 'block';
+            fileInfo.innerHTML = '<div class="loader"></div> در حال پردازش فایل...';
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Assume first sheet
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // Convert to JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 'A' });
+                    
+                    // Process data
+                    processExcelData(jsonData);
+                } catch (error) {
+                    fileInfo.innerHTML = `<p class="error">خطا در پردازش فایل: ${error.message}</p>`;
+                }
+            };
+            
+            reader.onerror = function() {
+                fileInfo.innerHTML = '<p class="error">خطا در خواندن فایل. لطفاً مطمئن شوید که فایل معتبر است.</p>';
+            };
+            
+            reader.readAsArrayBuffer(file);
+        });
+        
+        document.getElementById('showMapButton').addEventListener('click', displayOnMap);
+        
+        document.getElementById('downloadSample').addEventListener('click', function(e) {
+            e.preventDefault();
+            generateSampleExcel();
+        });
+        
+        document.getElementById('animateButton').addEventListener('click', animatePath);
+        document.getElementById('resetButton').addEventListener('click', resetAnimation);
+        document.getElementById('exportButton').addEventListener('click', exportData);
+        
+        // Initialize the page
+        window.addEventListener('load', function() {
+            // Map will be initialized when data is loaded and filtered
+        });
+        
+        // Animate path
+        function animatePath() {
+            // Don't animate if no data
+            if (!mapPolyline || !mapPolyline.latlngs || mapPolyline.latlngs.length === 0) return;
+            
+            // Clear any existing animation
+            clearPathAnimation();
+            
+            // Disable animation button during animation
+            document.getElementById('animateButton').disabled = true;
+            
+            // Reset polyline
+            mapPolyline.setLatLngs([]);
+            
+            // Start animation
+            let i = 0;
+            animation = setInterval(() => {
+                // Add next point
+                const currentPath = mapPolyline.getLatLngs();
+                currentPath.push(mapPolyline.latlngs[i]);
+                mapPolyline.setLatLngs(currentPath);
+                
+                // Center map on current point
+                map.panTo(mapPolyline.latlngs[i]);
+                
+                // Highlight current marker
+                if (mapMarkers[i]) {
+                    mapMarkers[i].openPopup();
+                    
+                    // Close previous popup
+                    if (i > 0 && mapMarkers[i-1]) {
+                        mapMarkers[i-1].closePopup();
+                    }
+                }
+                
+                i++;
+                
+                // End animation when done
+                if (i >= mapPolyline.latlngs.length) {
+                    clearPathAnimation();
+                    document.getElementById('animateButton').disabled = false;
+                }
+            }, animationSpeed);
+        }
+        
+        // Clear animation
+        function clearPathAnimation() {
+            if (animation) {
+                clearInterval(animation);
+                animation = null;
+            }
+            
+            // Close all popups
+            mapMarkers.forEach(marker => marker.closePopup());
+        }
+        
+        // Reset to full path
+        function resetAnimation() {
+            // Clear any existing animation
+            clearPathAnimation();
+            
+            // Enable animation button
+            document.getElementById('animateButton').disabled = false;
+            
+            // Show full path
+            if (mapPolyline && mapPolyline.latlngs) {
+                mapPolyline.setLatLngs(mapPolyline.latlngs);
+                
+                // Fit map to contain all points
+                if (mapPolyline.latlngs.length > 0) {
+                    map.fitBounds(L.latLngBounds(mapPolyline.latlngs));
+                }
+            }
+        }
+        
+        // Export data to CSV
+        function exportData() {
+            // Check if we have data
+            if (!excelData || excelData.length === 0) {
+                alert('هیچ داده‌ای برای صدور وجود ندارد');
+                return;
+            }
+            
+            const selectedDate = dateSelect.value;
+            const selectedOfficer = officerSelect.value;
+            
+            // Filter data
+            const filteredData = excelData.filter(item => 
+                item.persianDate === selectedDate && 
+                item.officerName === selectedOfficer
+            );
+            
+            if (filteredData.length === 0) {
+                alert('هیچ داده‌ای برای صدور وجود ندارد');
+                return;
+            }
+            
+            // Sort by time
+            filteredData.sort((a, b) => a.date - b.date);
+            
+            // Prepare CSV content
+            let csvContent = "data:text/csv;charset=utf-8,";
+            
+            // Add header
+            csvContent += "ردیف,نام مامور,نام انشعاب,تاریخ,ساعت,عرض جغرافیایی,طول جغرافیایی\n";
+            
+            // Add rows
+            filteredData.forEach((item, index) => {
+                const row = [
+                    index + 1,
+                    item.officerName,
+                    item.subscriberName || "",
+                    item.persianDate,
+                    item.time,
+                    item.coordinates[0],
+                    item.coordinates[1]
+                ].join(",");
+                csvContent += row + "\n";
+            });
+            
+            // Create download link
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `مسیر_${selectedOfficer}_${selectedDate.replace(/\//g, "-")}.csv`);
+            document.body.appendChild(link);
+            
+            // Trigger download
+            link.click();
+            
+            // Clean up
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html> 
